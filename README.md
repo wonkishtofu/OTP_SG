@@ -1,6 +1,6 @@
-OTP_SG
+<h2>OTP_SG</h2>
 
-<h1>Software Requirements: <h1>
+<h3>Software Requirements: </h3>
 - Java 8 or above installed. 
 - R Studio
 
