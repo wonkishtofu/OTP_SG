@@ -1,0 +1,95 @@
+---
+title: "OTM SG Implementation"
+author: "Sean Koh"
+date: "22/02/2019"
+output: html_document
+---
+Heavily referenced from David Ten's awesome gist: https://xang1234.github.io/isochrone/
+
+Lib Import:
+```{r setup, include<-FALSE}
+knitr::opts_chunk$set(echo <- TRUE)
+packages = c('tidyverse','leaflet', 'knitr','stringr','httr','geojsonio') 
+for (p in packages){
+  if(!require(p, character.only = T)){ 
+    install.packages(p)
+  }
+  library(p,character.only = T) 
+}
+```
+
+This basically tells us what isochrome maps you've already made :
+```{r}
+list.files("./data/")
+```
+Here's your method to generate new isochrome maps. Note that we're using a locally hosted instance of Open Trip Planner (OTP), to create our isochrome maps, for more information, please refer to : http://dev.opentripplanner.org/apidoc/1.3.0/ 
+    -   It's pretty readable. 
+    -   Do note that we're assuming folks would leave at 08:00, but adjust as you'd like; traffic conditions vary with time of day. 
+    -   Note walk distance / reluctance setting
+    -   The Transfer Time is assumed to be 1 minute only (walk/wait time between transport nodes)
+    -   Adjust cut off time in seconds pls tkvm. 
+    
+```{r}
+get_geojson<-function(lat,lng,filename){
+    current <- GET(
+      "http://localhost:8080/otp/routers/current/isochrone",
+      query = list(
+        fromPlace = paste(lat,lng,sep = ","), # latlong of place
+        mode = "WALK,TRANSIT", # modes we want the route planner to use
+        date = "07-10-2018",
+        time= "08:00am",
+        maxWalkDistance = 1600, # in metres
+        walkReluctance = 5,
+        minTransferTime = 60, # in secs
+        cutoffSec = 900,
+        cutoffSec = 1800,
+        cutoffSec = 2700,
+        cutoffSec = 3600
+      )
+    )
+    
+    current <- content(current, as = "text", encoding = "UTF-8")
+    write(current, file = paste("./data/",filename,".geojson" , sep = ""))
+}
+```
+
+We're generating 2 isochrome maps, just to test this.
+    -   Changi Airport, T1
+    -   SMU 
+    
+```{r}
+get_geojson(1.36173580440684,103.990348825503,
+  "Changi-Terminal-1")
+
+get_geojson(1.296568,103.852119,
+  "SMU")
+```
+
+Read time-travel maps, and generate a leaflet map with what's there.
+
+```{r}
+iso <- geojsonio::geojson_read("./data/SMU.geojson",
+  what = "sp")
+
+pal=c('cyan','gold','tomato','red')
+
+m<-leaflet(iso) %>%
+    setView(lng = 103.8198, lat = 1.3521, zoom = 11) %>%
+  addProviderTiles(providers$CartoDB.DarkMatter,
+                   options = providerTileOptions(opacity = 0.8))%>%  
+  addPolygons(stroke = TRUE, weight=0.5,
+              smoothFactor = 0.3, color="black",
+              fillOpacity = 0.1,fillColor =pal ) %>%
+  addLegend(position="bottomleft",colors=rev(c("lightskyblue","greenyellow","gold","tomato")),
+            labels=rev(c("60 min","45 min",
+                     "30 min","15 min")),
+            opacity = 0.6,
+            title="Travel Time with Public Transport")
+```
+
+Show map : 
+
+```{r}
+m  # Show the map
+```
+
